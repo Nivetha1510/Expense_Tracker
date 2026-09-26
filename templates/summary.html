@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="grid">
+    <section class="panel">
+        <h2>Category-wise Summary</h2>
+        {% if category_totals %}
+        <table>
+            <thead><tr><th>Category</th><th>Total</th></tr></thead>
+            <tbody>
+                {% for category, total in category_totals.items() %}
+                <tr><td>{{ category }}</td><td>{{ "%.2f"|format(total) }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No expenses recorded yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <h2>Monthly Summary</h2>
+        {% if monthly_totals %}
+        <table>
+            <thead><tr><th>Month</th><th>Total</th></tr></thead>
+            <tbody>
+                {% for month, total in monthly_totals.items() %}
+                <tr><td>{{ month }}</td><td>{{ "%.2f"|format(total) }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No expenses recorded yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<section class="panel">
+    <p class="big-balance">Grand Total: {{ "%.2f"|format(total) }}</p>
+</section>
+
+{% endblock %}
