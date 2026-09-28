@@ -21,3 +21,6 @@ button, .link-button { background: #2f6feb; color: #fff; border: none; padding: 
 .flash { padding: 0.6rem 1rem; border-radius: 4px; margin-bottom: 0.75rem; font-size: 0.9rem; }
 .flash.success { background: #e3f9e5; color: #1b8a2f; }
 .flash.error { background: #fdecea; color: #b3261e; }
+
+.edited { color: #8a6d00; font-size: 0.8rem; margin-left: 0.4rem; }
+.hint { color: #666; font-size: 0.85rem; }

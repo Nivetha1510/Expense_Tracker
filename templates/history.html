@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<section class="panel">
+    <h2>Edit History - Expense #{{ expense_id }}</h2>
+    {% if expense %}
+        <p>Currently: {{ expense.date }} &middot; {{ expense.category }} &middot; {{ expense.amount|money }}
+           {% if expense.description %}&middot; {{ expense.description }}{% endif %}</p>
+    {% else %}
+        <p><em>This expense has been deleted. Its history is kept for reference.</em></p>
+    {% endif %}
+
+    {% if edits %}
+        <table>
+            <thead><tr><th>When</th><th>Field</th><th>Before</th><th>After</th></tr></thead>
+            <tbody>
+                {% for edit in edits %}
+                    {% for change in edit.changes %}
+                    <tr>
+                        {% if loop.first %}<td rowspan="{{ edit.changes|length }}">{{ edit.timestamp.replace('T', ' ') }}</td>{% endif %}
+                        <td>{{ change.field }}</td>
+                        <td>{{ change.old or '-' }}</td>
+                        <td>{{ change.new or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+        <p class="hint">The app has no login, so it records when an edit happened, not who made it.</p>
+    {% else %}
+        <p>This expense has not been edited.</p>
+    {% endif %}
+    <p><a href="{{ url_for('download_history') }}">Download full edit history (CSV)</a>
+       &middot; <a href="{{ url_for('index') }}">&larr; Back to expenses</a></p>
+</section>
+
+{% endblock %}

@@ -9,7 +9,7 @@
             <thead><tr><th>Category</th><th>Total</th></tr></thead>
             <tbody>
                 {% for category, total in category_totals.items() %}
-                <tr><td>{{ category }}</td><td>{{ "%.2f"|format(total) }}</td></tr>
+                <tr><td>{{ category }}</td><td>{{ total|money }}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -25,7 +25,7 @@
             <thead><tr><th>Month</th><th>Total</th></tr></thead>
             <tbody>
                 {% for month, total in monthly_totals.items() %}
-                <tr><td>{{ month }}</td><td>{{ "%.2f"|format(total) }}</td></tr>
+                <tr><td>{{ month }}</td><td>{{ total|money }}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -36,7 +36,7 @@
 </div>
 
 <section class="panel">
-    <p class="big-balance">Grand Total: {{ "%.2f"|format(total) }}</p>
+    <p class="big-balance">Grand Total: {{ total|money }}</p>
 </section>
 
 {% endblock %}

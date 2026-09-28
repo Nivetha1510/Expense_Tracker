@@ -11,14 +11,48 @@ Run with:
 Then open http://127.0.0.1:5000
 """
 
-from flask import Flask, render_template, request, redirect, url_for, flash
+import hmac
+import os
+import secrets
+
+from flask import Flask, Response, render_template, request, redirect, url_for, flash, session, abort
 import expense_core as core
 
 app = Flask(__name__)
-app.secret_key = "replace-this-with-a-random-secret-key"
+# Set SECRET_KEY in the environment for sessions that survive restarts.
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
-# In-memory list of expense dicts, backed by expenses.csv
+# In-memory data, backed by expenses.csv and edit_history.csv.
+# If either file exists but is unreadable, this raises DataFileError and
+# the app refuses to start, so existing data is never overwritten.
 expenses = core.load_expenses()
+history = core.load_history()
+
+
+# --------------------------------------------------------------------
+# HELPERS
+# --------------------------------------------------------------------
+def csrf_token():
+    if "_csrf_token" not in session:
+        session["_csrf_token"] = secrets.token_hex(16)
+    return session["_csrf_token"]
+
+
+app.jinja_env.globals["csrf_token"] = csrf_token
+app.jinja_env.filters["money"] = lambda value: f"{value:.2f}"
+
+
+@app.before_request
+def protect_from_csrf():
+    if request.method == "POST":
+        expected = session.get("_csrf_token", "")
+        sent = request.form.get("csrf_token", "")
+        if not expected or not hmac.compare_digest(sent, expected):
+            abort(400, "Invalid or missing CSRF token. Reload the page and try again.")
+
+
+def save_failed(error):
+    flash(f"Could not save your changes to disk: {error}", "error")
 
 
 @app.route("/")
@@ -38,6 +72,10 @@ def index():
             flash("Both dates must be valid, in YYYY-MM-DD format.", "error")
             results = core.list_expenses(expenses)
             start = end = ""
+        elif start > end:
+            flash("The end date must not be before the start date.", "error")
+            results = core.list_expenses(expenses)
+            start = end = ""
         else:
             results = sorted(core.filter_by_date_range(expenses, start, end), key=lambda e: e["date"])
     else:
@@ -49,6 +87,7 @@ def index():
         category=category, month=month, start=start, end=end,
         categories=core.DEFAULT_CATEGORIES,
         total=core.total_spent(results),
+        edited=core.edited_ids(history),
     )
 
 
@@ -60,13 +99,11 @@ def add():
     date = request.form.get("date", "").strip()
 
     try:
-        amount = float(amount_raw)
-    except ValueError:
-        flash("Amount must be a valid number.", "error")
-        return redirect(url_for("index"))
-
-    success, message = core.add_expense(expenses, amount, category, description, date or None)
-    flash(message, "success" if success else "error")
+        success, message = core.add_expense(expenses, amount_raw, category, description, date or None)
+    except OSError as e:
+        save_failed(e)
+    else:
+        flash(message, "success" if success else "error")
     return redirect(url_for("index"))
 
 
@@ -77,35 +114,51 @@ def edit(expense_id):
         flash(f"Expense ID '{expense_id}' not found.", "error")
         return redirect(url_for("index"))
 
+    values = {}
     if request.method == "POST":
-        amount_raw = request.form.get("amount", "").strip()
-        category = request.form.get("category", "").strip()
-        description = request.form.get("description", "").strip()
-        date = request.form.get("date", "").strip()
+        # Only fields present in the form are submitted; an empty
+        # description is a deliberate "clear", not "leave unchanged".
+        values = {f: request.form[f] for f in ("amount", "category", "description", "date") if f in request.form}
+        try:
+            success, message = core.update_expense(expenses, history, expense_id, **values)
+        except OSError as e:
+            save_failed(e)
+        else:
+            flash(message, "success" if success else "error")
+            if success:
+                return redirect(url_for("index"))
 
-        amount = None
-        if amount_raw:
-            try:
-                amount = float(amount_raw)
-            except ValueError:
-                flash("Invalid amount entered.", "error")
-                return render_template("edit.html", expense=existing, categories=core.DEFAULT_CATEGORIES)
+    return render_template("edit.html", expense=existing, values=values, categories=core.DEFAULT_CATEGORIES)
 
-        success, message = core.update_expense(
-            expenses, expense_id, amount=amount,
-            category=category or None, description=description or None, date=date or None
-        )
-        flash(message, "success" if success else "error")
-        if success:
-            return redirect(url_for("index"))
 
-    return render_template("edit.html", expense=existing, categories=core.DEFAULT_CATEGORIES)
+@app.route("/download/history")
+def download_history():
+    """Download the full edit history (all expenses) as a CSV file."""
+    return Response(
+        core.history_csv_text(history),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=edit_history.csv"},
+    )
+
+
+@app.route("/history/<expense_id>")
+def edit_history(expense_id):
+    edits = core.edits_for(history, expense_id)
+    expense = core.find_expense(expenses, expense_id)
+    if expense is None and not edits:
+        flash(f"Expense ID '{expense_id}' not found.", "error")
+        return redirect(url_for("index"))
+    return render_template("history.html", expense_id=expense_id, expense=expense, edits=edits)
 
 
 @app.route("/delete/<expense_id>", methods=["POST"])
 def delete(expense_id):
-    success, message = core.delete_expense(expenses, expense_id)
-    flash(message, "success" if success else "error")
+    try:
+        success, message = core.delete_expense(expenses, expense_id)
+    except OSError as e:
+        save_failed(e)
+    else:
+        flash(message, "success" if success else "error")
     return redirect(url_for("index"))
 
 

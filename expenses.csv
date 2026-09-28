@@ -1,2 +1,4 @@
 expense_id,amount,category,description,date
-1,500.0,Food,Trip,2026-01-26
+1,500.00,Food,Trip,2026-01-26
+2,100.00,Utilities,home,2026-09-28
+3,1.00,Other,Trip,2026-09-28

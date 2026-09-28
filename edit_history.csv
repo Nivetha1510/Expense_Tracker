@@ -1,0 +1,4 @@
+edit_id,expense_id,timestamp,field,old_value,new_value
+1,1,2026-09-28T15:33:44,(details not recorded),,
+2,2,2026-09-28T16:14:40,amount,1000.00,500.00
+3,2,2026-09-28T16:15:00,amount,500.00,100.00
